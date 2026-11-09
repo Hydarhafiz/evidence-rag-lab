@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local datasets and indexes
+data/raw/
+data/processed/
+data/indexes/
+models/
+.cache/
+
+# Generated experiment files
+artifacts/generated/
+
+# SDD local execution state
+.sdd/
+
+# Local editor files
+.vscode/
