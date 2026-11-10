@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools==78.1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evidence-rag-lab"
+version = "0.1.0"
+description = "Reproducible FEVER passage preparation and retrieval baselines."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy==2.5.4",
+    "rank-bm25==0.2.2",
+    "sentence-transformers==6.2.0",
+    "qdrant-client==1.20.0",
+    "torch==2.15.0",
+    "transformers==5.22.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "ruff==0.17.4",
+]
+
+[project.scripts]
+fever-rag = "evidence_rag.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

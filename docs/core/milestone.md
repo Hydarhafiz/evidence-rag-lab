@@ -34,7 +34,7 @@ The record does not infer a license from a mirror or claim that all historical a
 
 ## M1-F02 — Deterministic mini-corpus and retrieval
 
-- Type: build. Status: READY; next feature, not started. Budget: about 5 hours.
+- Type: build. Status: COMPLETE; verified 10 November 2026.
 - Route: `builder-executor -> tdd-loop`.
 - Entry: F01 complete; use only the official artifacts and processing scope in `planning-sources.md`.
 - Outcome: build the fixed FEVER mini-corpus and repeatable BM25/dense retrieval over the same passages.
@@ -59,6 +59,24 @@ The evaluation sample and source pages are selected using gold labels/evidence, 
 - Record the final passage count, input hashes, selected claim IDs in local evaluation-only data, per-class counts, evidence-page coverage, tokenizer lengths/truncation, index rebuild instructions, and BM25/dense Recall@k plus complete-evidence-group hits. State that the latter are custom FEVER subset retrieval metrics, not BEIR qrel scores.
 
 Non-goals: any larger corpus, BEIR conversion, query expansion, hybrid retrieval, reranking, extra embedding models, Qdrant server, or public index release. Completion: one feature commit with implementation, focused regression tests, reproducibility evidence, required docs, and the milestone update.
+
+### F02 implementation and verification record
+
+The three official source files were restored locally because they were absent from the checkout. `fever-rag prepare` checked all three F01 SHA-256 values before parsing and again after construction; all matched. The wiki archive contains 224 members and 109 `wiki-pages/wiki-###.jsonl` shards. It also contains macOS sidecars, which ingestion excludes by path. The scan saw 5,416,537 page records, 5,416,536 non-empty unique page-title IDs, one empty page ID, one duplicate sentence ID on one page, 518 nonnumeric line rows, and 16,793,196 rows with empty sentence text. The empty ID is skipped; duplicate sentence IDs are removed from source passages, and the page with the duplicate ID is excluded from background selection.
+
+The deterministic selection produced 30 train development claims (10 per label) and 60 held-out development claims (20 per label), stored in separate ignored `evaluation_samples_train.jsonl` and `evaluation_samples_dev.jsonl` files. The smoke loader accepts only the train file. The selected claims contain 107 evidence groups, 72 exact source pages, and 103 unique page/sentence pairs. The corpus includes all 103 pairs. The 72 evidence pages produced 291 four-sentence, stride-three passages after empty rows were removed. Background selection considered 10,410,277 windows and added 4,709 to reach exactly 5,000 passages. The corpus is gold-informed because both splits’ evidence pages were used in construction.
+
+Runtime passage records expose only `passage_id`, `page_title`, `sentence_ids`, `text`, `source_artifact`, and `source_sha256`. The JSONL corpus SHA-256 is `be6bdf115415a42dbb2a55585c160d157b2528875f14d70f990cdb1f6a7ceebe`. Stable passage IDs use UUID5 over the exact page title, sentence references, and text. The longest built passage used 424 of the model’s 512 tokens; no truncation or sentence splitting occurred for this corpus. Synthetic tests cover over-limit sentence splitting while retaining the original sentence ID.
+
+The dense encoder is `BAAI/bge-small-en-v1.5` at immutable revision `5c38ec7c405ec4b44b94cc5a9bb96e735b38267a`. It emits 384-dimensional normalized vectors, uses cosine similarity, has a 512-token limit, and is kept in an ignored local model cache. Passage input is title, newline, and sentence text; query input uses `Represent this sentence for searching relevant passages: ` before the claim. Local Qdrant stores all 5,000 vectors persistently under a collection name derived from the corpus hash. The Qdrant build took 190,207 ms on this CPU environment. BM25 is rebuilt in memory from the same passage file and took about 100 ms. Both methods break score ties by ascending stable passage ID.
+
+The final F02 development-only retrieval smoke evaluated the 20 verifiable claims in the 30-claim train sample at top 5. BM25 page/sentence Recall@5 was 0.88125, complete-evidence-group hit rate was 0.85, mean query latency was 15.39 ms, and median latency was 6.26 ms. Dense Recall@5 was 0.89375, complete-group hit rate was 0.90, mean query latency was 154.04 ms, and median latency was 110.08 ms. BM25 index construction took 104.97 ms in this run; the persisted Qdrant index was built from the same SHA-256-identical corpus and took 190,207 ms on the CPU environment. These custom curated-subset smoke observations are not BEIR qrel scores or final M2 evaluation results. No held-out retrieval or generation outcomes were inspected, and no retrieval settings were tuned against the 60 held-out claims.
+
+Verification environment: Python 3.12.3, NumPy 2.5.4, `rank-bm25` 0.2.2, Sentence Transformers 6.2.0, PyTorch 2.15.0+cpu, Transformers 5.22.2, `qdrant-client` 1.20.0, pytest 9.2.0, and Ruff 0.17.4. Direct project dependencies and the test/lint tools are pinned in `pyproject.toml`.
+
+Verification passed: `pytest -q` (14 passed), `ruff format --check src tests`, `ruff check src tests`, and `python -m compileall -q src`. The real local 5K index build, persistence across a separate CLI process, and development-only `fever-rag smoke --top-k 5` also completed. No manual product or external-provider check was required; no OpenRouter call was made.
+
+Limitations: the corpus is a small gold-informed subset with a deterministic but nonrepresentative background draw. The smoke metrics cover only the train development sample and are not verdict metrics. Local Qdrant performs exact brute-force search; retrieving all 5,000 scores and sorting them by passage ID makes tie behavior deterministic but may increase latency as the corpus grows. Raw FEVER files, the selected evaluation sample, model weights, dense index, and generated manifests remain outside Git. M1-F03 remains gated on separate spending authorization.
 
 ## M1-F03 — Evidence-grounded verification CLI
 
