@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
+from time import perf_counter
+
+import httpx
+from dotenv import load_dotenv
 
 from evidence_rag.corpus import CorpusError, prepare_corpus
 from evidence_rag.embeddings import load_encoder
@@ -18,6 +23,13 @@ from evidence_rag.retrieval import (
     RetrievalError,
     build_dense_index,
 )
+from evidence_rag.verification import (
+    VerificationError,
+    create_live_runnable,
+    load_model_tokenizer,
+    load_settings,
+    run_verification,
+)
 
 DEFAULT_TRAIN = Path("data/raw/train.jsonl")
 DEFAULT_DEV = Path("data/raw/shared_task_dev.jsonl")
@@ -26,6 +38,7 @@ DEFAULT_PASSAGES = Path("data/processed/passages.jsonl")
 DEFAULT_EVALUATION = Path("data/processed/evaluation_samples_train.jsonl")
 DEFAULT_QDRANT = Path("data/indexes/qdrant")
 DEFAULT_MODEL_CACHE = Path("models/hf")
+DEFAULT_VERIFICATION_CONFIG = Path("config/verification.toml")
 
 
 def _add_model_paths(parser: argparse.ArgumentParser) -> None:
@@ -73,6 +86,24 @@ def _parser() -> argparse.ArgumentParser:
     smoke.add_argument("--evaluation", type=Path, default=DEFAULT_EVALUATION)
     smoke.add_argument("--top-k", type=int, default=5)
     _add_retrieval_paths(smoke)
+
+    verify = commands.add_parser(
+        "verify",
+        help="verify one claim against retrieved evidence (requires explicit --live)",
+    )
+    verify.add_argument("--claim", required=True)
+    verify.add_argument("--method", choices=("bm25", "dense"), required=True)
+    verify.add_argument("--live", action="store_true", help="authorize this bounded live request")
+    verify.add_argument(
+        "--confirm-account-controls",
+        action="store_true",
+        help="confirm OpenRouter ZDR, disabled logging, and a bounded spending cap are configured",
+    )
+    verify.add_argument("--passages", type=Path, default=DEFAULT_PASSAGES)
+    verify.add_argument("--qdrant-path", type=Path, default=DEFAULT_QDRANT)
+    _add_model_paths(verify)
+    verify.add_argument("--config", type=Path, default=DEFAULT_VERIFICATION_CONFIG)
+    verify.add_argument("--env-file", type=Path, default=Path(".env"))
     return parser
 
 
@@ -139,6 +170,53 @@ def _smoke(args: argparse.Namespace) -> dict[str, object]:
     )
 
 
+def _verify(args: argparse.Namespace) -> dict[str, object]:
+    if not args.live:
+        raise VerificationError(
+            "live inference is disabled; pass --live to make up to two requests"
+        )
+    if not args.confirm_account_controls:
+        raise VerificationError(
+            "configure OpenRouter account privacy and spending controls, then pass "
+            "--confirm-account-controls"
+        )
+    settings = load_settings(args.config)
+    load_dotenv(dotenv_path=args.env_file, override=False)
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not api_key:
+        raise VerificationError(
+            "OPENROUTER_API_KEY is missing; set it in .env or the process environment"
+        )
+    tokenizer = load_model_tokenizer(settings, args.cache_dir)
+
+    started = perf_counter()
+    retriever = None
+    try:
+        if args.method == "bm25":
+            retriever, corpus_hash = BM25Retriever.from_path(args.passages)
+        else:
+            retriever = DenseRetriever(args.passages, args.qdrant_path, args.cache_dir)
+            corpus_hash = retriever.corpus_sha256
+        with httpx.Client(timeout=settings.request_timeout_seconds) as http_client:
+            runnable, _sdk = create_live_runnable(settings, api_key, http_client=http_client)
+            result = run_verification(
+                claim=args.claim,
+                method=args.method,
+                retriever=retriever,
+                corpus_sha256=corpus_hash,
+                tokenizer=tokenizer,
+                settings=settings,
+                structured_runnable=runnable,
+                started_at=started,
+            )
+            result["account_level_controls_confirmed_by_operator"] = True
+            result["raw_prompt_response_logging"] = settings.raw_prompt_response_logging
+            return result
+    finally:
+        if isinstance(retriever, DenseRetriever):
+            retriever.close()
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     handlers = {
@@ -146,6 +224,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "index": _index,
         "search": _search,
         "smoke": _smoke,
+        "verify": _verify,
     }
     try:
         result = handlers[args.command](args)
@@ -153,7 +232,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2, ensure_ascii=False))
-    return 0
+    return 2 if result.get("generation_status") == "operational_failure" else 0
 
 
 if __name__ == "__main__":

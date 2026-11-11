@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "evidence-rag-lab"
 version = "0.1.0"
-description = "Reproducible FEVER passage preparation and retrieval baselines."
+description = "Reproducible FEVER retrieval and evidence-grounded claim verification."
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "numpy==2.5.4",
@@ -14,6 +14,12 @@ dependencies = [
     "qdrant-client==1.20.0",
     "torch==2.15.0",
     "transformers==5.22.2",
+    "httpx==0.28.1",
+    "langchain-openrouter==0.2.9",
+    "openrouter==0.11.46",
+    "pydantic==2.12.5",
+    "python-dotenv==1.2.4",
+    "tiktoken==0.14.0",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,32 @@
+[model]
+identifier = "mistralai/mistral-small-3.2-24b-instruct"
+provider = "DeepInfra"
+temperature = 0.0
+max_output_tokens = 512
+request_timeout_seconds = 30
+max_attempts = 2
+retry_backoff_seconds = 0.25
+retrieval_top_k = 5
+context_token_budget = 4096
+prompt_version = "m1-f03-v1"
+
+[privacy]
+provider_only = ["DeepInfra"]
+allow_fallbacks = false
+zdr = true
+data_collection = "deny"
+require_parameters = true
+raw_prompt_response_logging = false
+
+[pricing]
+input_usd_per_million_tokens = 0.075
+output_usd_per_million_tokens = 0.20
+observed_on = "2026-11-11"
+source = "https://openrouter.ai/mistralai/mistral-small-3.2-24b-instruct/providers"
+
+[tokenizer]
+repository = "mistralai/Mistral-Small-3.2-24B-Instruct-2506"
+revision = "9151ac4804f11eac6d7cd3b963eaf9ea1bc56839"
+filename = "tekken.json"
+sha256 = "6e2501687ccd0e1f30f36319eaf2b46958b897811e246cd8eb5d385b9e3de7d1"
+relative_path = "mistral-small-3.2-24b/tekken.json"
