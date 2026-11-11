@@ -1,6 +1,6 @@
 # Evidence RAG Lab
 
-A small, reproducible Applied AI case study for Wikipedia-based claim verification. M1-F01 accepted the official FEVER source and local-use boundary. M1-F02 prepares a fixed passage corpus and compares BM25 with one local dense retriever. M1-F03 adds a one-claim cited verification command; its first separately authorized live check passed on an approved train-only example, and the provider activity cost was recorded. No held-out generation evaluation has been run.
+Evidence RAG Lab is a small Applied AI engineering case study for Wikipedia-based claim verification. Milestone 1 completed on 12 November 2026 with a gold-informed 5,000-passage FEVER corpus, BM25 and BGE-small dense retrieval, and a Python CLI that returns evidence-grounded SUPPORTS, REFUTES, or NOT ENOUGH INFO verdicts with validated source references. One separately authorized train-only live check passed and its provider activity cost was recorded; this is an observation, not evidence of system-wide accuracy or reliability. M2 is planned but inactive, and the held-out evaluation has not been run.
 
 ## Dataset and evaluation boundary
 
@@ -24,11 +24,11 @@ Dense retrieval embeds the exact passage text (page title, newline, then source 
 
 The runtime dependencies each serve a narrow path: `rank-bm25` supplies the transparent lexical baseline, Sentence Transformers loads and encodes with the one pinned model, `qdrant-client` provides embedded persistent local storage, `transformers` supplies the tokenizer type/API used for token-boundary construction, `torch` is the Sentence Transformers model backend, and NumPy checks vector dimensions and normalization. For verification, `langchain-openrouter` and the OpenRouter SDK provide the thin structured chat boundary, Pydantic validates its output contract, `tiktoken` loads Mistral's pinned Tekken vocabulary for context counting, `httpx` configures the bounded client and mocked transport tests, and `python-dotenv` reads the API key only on the explicit live path. Setuptools provides the small `fever-rag` CLI package; pytest and Ruff are development-only tools.
 
-The custom recall and complete-group metrics are separate from verdict evaluation and are not BEIR qrel scores. M1-F03 adds generation and citation validation; the official FEVER scorer workflow remains separate.
+The custom recall and complete-group metrics are separate from verdict evaluation and are not BEIR qrel scores. The verification command adds generation and citation validation; the official FEVER scorer workflow remains separate.
 
 ## M1-F03: cited claim verification
 
-`fever-rag verify --claim "..." --method bm25 --live` retrieves the configured top five passages from the existing runtime corpus, then greedily packs whole passages in retrieval rank order under the 4,096-token application-message budget. The versioned prompt and claim count against that budget. A passage is either included whole or recorded with its rank, page title, original sentence IDs, passage ID, and omission reason; source text and its citation mapping are never truncated. An empty packed context returns NOT ENOUGH INFO without making a provider request.
+`fever-rag verify --claim "..." --method bm25 --live --confirm-account-controls` retrieves the configured top five passages from the existing runtime corpus, then greedily packs whole passages in retrieval rank order under the 4,096-token application-message budget. The versioned prompt and claim count against that budget. A passage is either included whole or recorded with its rank, page title, original sentence IDs, passage ID, and omission reason; source text and its citation mapping are never truncated. An empty packed context returns NOT ENOUGH INFO without making a provider request.
 
 The live path requires both `--live` and `--confirm-account-controls`, reads `OPENROUTER_API_KEY` from the process environment or ignored `.env`, and makes at most two attempts for one claim. The second flag is an operator attestation: the CLI cannot inspect OpenRouter account settings, so configure account-level privacy, disabled logging, and a non-resetting spend cap before confirming. `config/verification.toml` pins `mistralai/mistral-small-3.2-24b-instruct`, DeepInfra only, temperature, output limit, timeouts, context budget, pricing date, and the ZDR, no-fallback, data-denial, and required-parameter routing fields. Copy `.env.example` to `.env` and set the key locally. Download only the tokenizer artifact used for local counting:
 
@@ -55,11 +55,17 @@ Learning checkpoint:
 5. NOT ENOUGH INFO describes what the retrieved evidence warrants. A timeout, HTTP error, missing key, malformed response, or rejected citation describes a failed operation and exits separately.
 6. M2 should inspect retrieval misses, evidence dropped by context packing, conflicting evidence, citation omissions/fabrications, schema failures, provider latency and availability, missing usage metadata, and the gap between source validity and entailment.
 
+## M1 closeout and current status
+
+Release verification on 12 November 2026 passed: `pytest -q` (44 passed; 30 F03 cases and 14 earlier cases), `ruff format --check src tests`, `ruff check src tests`, `python -m compileall -q src`, `python -m pip check`, CLI help, SDD preflight, and `git diff --check`. The one live train-only result returned REFUTES and matched the annotated FEVER source; one successful claim does not establish system-wide reliability. No held-out retrieval or generation outcome was inspected. The corpus is gold-informed, and the reported retrieval smoke metrics cover only the train development sample, not the full FEVER benchmark. Validating that a source reference occurs in supplied text does not establish semantic correctness. M2 remains planned and inactive; its first work is a separately activated fixed evaluation protocol.
+
 ## Rebuild locally
 
 Use Python 3.12. On CPU-only Linux, install the CPU PyTorch wheel before the project dependencies so pip does not select unnecessary CUDA libraries:
 
 ```sh
+python3.12 -m venv .venv
+source .venv/bin/activate
 python -m pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
 python -m pip install -e ".[dev]"
 ```
@@ -93,7 +99,7 @@ ruff format --check src tests
 ruff check src tests
 ```
 
-The smoke command reads `evaluation_samples_train.jsonl` only; its loader rejects any non-train sample. It does not open the held-out file or run generation. See [the active milestone](docs/core/milestone.md), [roadmap](docs/core/roadmap.md), and [source and use record](docs/core/planning-sources.md) for source hashes, license conditions, limitations, and current M1 status.
+The smoke command reads `evaluation_samples_train.jsonl` only; its loader rejects any non-train sample. It does not open the held-out file or run generation. See the [completed M1 record](docs/core/milestone.md), [roadmap](docs/core/roadmap.md), and [source and use record](docs/core/planning-sources.md) for source hashes, license conditions, limitations, and milestone outcomes.
 
 ## Dataset use
 
