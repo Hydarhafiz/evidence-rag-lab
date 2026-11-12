@@ -1,6 +1,6 @@
 # Evidence RAG Lab
 
-Evidence RAG Lab is a small Applied AI engineering case study for Wikipedia-based claim verification. Milestone 1 completed on 12 November 2026 with a gold-informed 5,000-passage FEVER corpus, BM25 and BGE-small dense retrieval, and a Python CLI that returns evidence-grounded SUPPORTS, REFUTES, or NOT ENOUGH INFO verdicts with validated source references. One separately authorized train-only live check passed and its provider activity cost was recorded; this is an observation, not evidence of system-wide accuracy or reliability. M2 is planned but inactive, and the held-out evaluation has not been run.
+Evidence RAG Lab is a small Applied AI engineering case study for Wikipedia-based claim verification. Milestone 1 completed on 12 November 2026 with a gold-informed 5,000-passage FEVER corpus, BM25 and BGE-small dense retrieval, and a Python CLI that returns evidence-grounded SUPPORTS, REFUTES, or NOT ENOUGH INFO verdicts with validated source references. One separately authorized train-only live check passed and its provider activity cost was recorded; this is an observation, not evidence of system-wide accuracy or reliability. M2's plan and three-phase authorization procedure were approved on 13 November; planning is complete and F04 has not started. The held-out evaluation has not been run, and M3 remains planned.
 
 ## Dataset and evaluation boundary
 
@@ -57,7 +57,7 @@ Learning checkpoint:
 
 ## M1 closeout and current status
 
-Release verification on 12 November 2026 passed: `pytest -q` (44 passed; 30 F03 cases and 14 earlier cases), `ruff format --check src tests`, `ruff check src tests`, `python -m compileall -q src`, `python -m pip check`, CLI help, SDD preflight, and `git diff --check`. The one live train-only result returned REFUTES and matched the annotated FEVER source; one successful claim does not establish system-wide reliability. No held-out retrieval or generation outcome was inspected. The corpus is gold-informed, and the reported retrieval smoke metrics cover only the train development sample, not the full FEVER benchmark. Validating that a source reference occurs in supplied text does not establish semantic correctness. M2 remains planned and inactive; its first work is a separately activated fixed evaluation protocol.
+Release verification on 12 November 2026 passed: `pytest -q` (44 passed; 30 F03 cases and 14 earlier cases), `ruff format --check src tests`, `ruff check src tests`, `python -m compileall -q src`, `python -m pip check`, CLI help, SDD preflight, and `git diff --check`. The one live train-only result returned REFUTES and matched the annotated FEVER source; one successful claim does not establish system-wide reliability. No held-out retrieval or generation outcome was inspected. The corpus is gold-informed, and the reported retrieval smoke metrics cover only the train development sample, not the full FEVER benchmark. Validating that a source reference occurs in supplied text does not establish semantic correctness. The full M1 contract is preserved in closeout commit `15d3bf1`; the reusable [milestone file](docs/core/milestone.md) contains the approved M2 plan and three-phase authorization procedure. F04/F05 remain unimplemented; each actual paid phase requires separate authorization.
 
 ## Rebuild locally
 
@@ -99,7 +99,7 @@ ruff format --check src tests
 ruff check src tests
 ```
 
-The smoke command reads `evaluation_samples_train.jsonl` only; its loader rejects any non-train sample. It does not open the held-out file or run generation. See the [completed M1 record](docs/core/milestone.md), [roadmap](docs/core/roadmap.md), and [source and use record](docs/core/planning-sources.md) for source hashes, license conditions, limitations, and milestone outcomes.
+The smoke command reads `evaluation_samples_train.jsonl` only; its loader rejects any non-train sample. It does not open the held-out file or run generation. See the [current milestone](docs/core/milestone.md), [roadmap and M1 summary](docs/core/roadmap.md), and [source and use record](docs/core/planning-sources.md) for source hashes, license conditions, limitations, and milestone outcomes.
 
 ## Dataset use
 
