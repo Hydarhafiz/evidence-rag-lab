@@ -240,8 +240,13 @@ class DenseRetriever:
         qdrant_path: Path,
         cache_dir: Path,
     ) -> None:
+        startup_started = perf_counter()
+        passage_load_started = perf_counter()
         self.passages, self.corpus_sha256 = load_runtime_passages(passages_path)
+        self.passage_load_latency_ms = (perf_counter() - passage_load_started) * 1_000
+        encoder_load_started = perf_counter()
         self.encoder: SentenceTransformer = load_encoder(cache_dir)
+        self.encoder_load_latency_ms = (perf_counter() - encoder_load_started) * 1_000
         self.collection_name = _collection_name(self.corpus_sha256)
         manifest_path = qdrant_path / INDEX_MANIFEST_NAME
         if not manifest_path.is_file():
@@ -265,6 +270,7 @@ class DenseRetriever:
         ):
             raise RetrievalError("dense index manifest does not match the accepted corpus/model")
 
+        qdrant_open_started = perf_counter()
         self.client = QdrantClient(path=str(qdrant_path))
         if not self.client.collection_exists(self.collection_name):
             self.client.close()
@@ -275,6 +281,8 @@ class DenseRetriever:
             raise RetrievalError(
                 f"Qdrant point count mismatch: expected {len(self.passages)}, got {count}"
             )
+        self.qdrant_open_latency_ms = (perf_counter() - qdrant_open_started) * 1_000
+        self.startup_latency_ms = (perf_counter() - startup_started) * 1_000
 
     def close(self) -> None:
         self.client.close()

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from evidence_rag.corpus import CorpusError, prepare_corpus
 from evidence_rag.embeddings import load_encoder
-from evidence_rag.evaluation import run_development_smoke
+from evidence_rag.evaluation import run_development_smoke, run_retrieval_evaluation
 from evidence_rag.retrieval import (
     BM25Retriever,
     DenseRetriever,
@@ -36,9 +36,11 @@ DEFAULT_DEV = Path("data/raw/shared_task_dev.jsonl")
 DEFAULT_WIKI = Path("data/raw/wiki-pages.zip")
 DEFAULT_PASSAGES = Path("data/processed/passages.jsonl")
 DEFAULT_EVALUATION = Path("data/processed/evaluation_samples_train.jsonl")
+DEFAULT_HELD_OUT_EVALUATION = Path("data/processed/evaluation_samples_dev.jsonl")
 DEFAULT_QDRANT = Path("data/indexes/qdrant")
 DEFAULT_MODEL_CACHE = Path("models/hf")
 DEFAULT_VERIFICATION_CONFIG = Path("config/verification.toml")
+DEFAULT_EVALUATION_OUTPUT = Path("artifacts/generated/m2-f04")
 
 
 def _add_model_paths(parser: argparse.ArgumentParser) -> None:
@@ -86,6 +88,22 @@ def _parser() -> argparse.ArgumentParser:
     smoke.add_argument("--evaluation", type=Path, default=DEFAULT_EVALUATION)
     smoke.add_argument("--top-k", type=int, default=5)
     _add_retrieval_paths(smoke)
+
+    evaluate = commands.add_parser(
+        "evaluate",
+        help="compare BM25 and dense retrieval offline on the frozen evaluation sample",
+    )
+    evaluate.add_argument("--split", choices=("train", "dev"), default="train")
+    evaluate.add_argument("--evaluation", type=Path)
+    evaluate.add_argument("--freeze", type=Path)
+    evaluate.add_argument("--confirm-freeze-sha256")
+    evaluate.add_argument(
+        "--confirm-heldout-phase-authorized",
+        action="store_true",
+        help="attest that the separate held-out phase approval was granted after freeze review",
+    )
+    evaluate.add_argument("--output", type=Path)
+    _add_retrieval_paths(evaluate)
 
     verify = commands.add_parser(
         "verify",
@@ -170,6 +188,47 @@ def _smoke(args: argparse.Namespace) -> dict[str, object]:
     )
 
 
+def _evaluate(args: argparse.Namespace) -> dict[str, object]:
+    split = args.split
+    evaluation_path = args.evaluation
+    if evaluation_path is None:
+        evaluation_path = DEFAULT_EVALUATION if split == "train" else DEFAULT_HELD_OUT_EVALUATION
+    report_path = args.output or DEFAULT_EVALUATION_OUTPUT / f"retrieval-evaluation-{split}.json"
+    report = run_retrieval_evaluation(
+        passages_path=args.passages,
+        evaluation_path=evaluation_path,
+        qdrant_path=args.qdrant_path,
+        cache_dir=args.cache_dir,
+        split=split,
+        freeze_path=args.freeze,
+        confirmed_freeze_sha256=args.confirm_freeze_sha256,
+        held_out_phase_authorized=args.confirm_heldout_phase_authorized,
+    )
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    methods = report["methods"]
+    return {
+        "split": split,
+        "report_path": str(report_path),
+        "dataset_identity": report["dataset_identity"],
+        "paired_comparison": report["paired_comparison"],
+        "methods": {
+            method: {
+                "startup": methods[method]["startup"],
+                "latency": methods[method]["latency"],
+                "ranking_stability": methods[method]["ranking_stability"],
+                "metrics": methods[method]["metrics"],
+            }
+            for method in ("bm25", "dense")
+        },
+        "provider_calls": 0,
+        "paid_inference": False,
+    }
+
+
 def _verify(args: argparse.Namespace) -> dict[str, object]:
     if not args.live:
         raise VerificationError(
@@ -224,6 +283,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "index": _index,
         "search": _search,
         "smoke": _smoke,
+        "evaluate": _evaluate,
         "verify": _verify,
     }
     try:

@@ -1,6 +1,6 @@
 # Evidence RAG Lab — Milestone 2: Controlled Retrieval and LLM Evaluation
 
-Status: **ACTIVE — plan and three-phase authorization procedure APPROVED on 13 November 2026.** Prepared 12 November; approval recorded 13 November. Execution window: 16–22 November; interview-ready target: 29 November 2026. Only M2 is active. M3 remains planned. F04 and F05 implementation have not started. Planning is a standalone completed deliverable; the user authorized its commit and instructed work to stop before F04. Each paid phase requires separate explicit authorization; no paid execution is authorized by plan approval.
+Status: **ACTIVE — plan and three-phase authorization procedure APPROVED on 13 November 2026.** Prepared 12 November; approval recorded 13 November. Execution window: 16–22 November; interview-ready target: 29 November 2026. Only M2 is active. M3 remains planned. F04 is complete (14 November); F05 remains approved direction and has not started. No paid execution or held-out evaluation is authorized by plan approval.
 
 ## Entry evidence and outcome
 
@@ -20,7 +20,7 @@ F05 must preserve safe parsed candidate verdict/citation diagnostics before reje
 
 ## M2-F04 — Retrieval evaluation
 
-- Type: `build`. Status: APPROVED; NOT STARTED. Await a separate instruction to begin F04.
+- Type: `build`. Status: **COMPLETE — 14 November 2026; F04-01 through F04-05 accepted.**
 - Outcome: offline evaluator and train-development comparison, with a synthetically tested, gated held-out path.
 - Scope: same-corpus BM25/dense at k=1,5,10; group-preserving metrics, per-claim ranks, failures, latency and available build/storage observations. No retriever tuning or corpus rebuilding.
 - Entry: M1 closeout and identities verified; protocol approved. Read-only audit checks new numerical methodology, authoritative sources and split isolation.
@@ -34,6 +34,8 @@ F05 must preserve safe parsed candidate verdict/citation diagnostics before reje
 | F04-03 | Evaluate only the existing 30 train claims during F04. Produce paired overall/label-specific results, recovery/ranking traces, actual denominators, failures and cause hypotheses. Verify ranking repeatability; do not relabel smoke observations as final results. |
 | F04-04 | Report warm query p50/p95/counts, failures, environment/timing boundaries, startup, available indexing time and persistent storage characteristics. Explicitly mark unavailable/incomparable values and reasons. |
 | F04-05 | Deliver reusable final-evaluation interface and compact train report; prove no gold leakage or accidental held-out access. Document actual implemented commands at completion, not speculative CLI capabilities. |
+
+Completion evidence: [M2-F04 retrieval evaluation report](../reports/m2-f04-retrieval-evaluation.md). The offline `evaluate --split train` command verified the accepted corpus/train identities and 10/10/10 label counts, checked the held-out file only by its approved opaque hash, and completed 90 timed queries per method with stable rankings and no retrieval failures. Synthetic regression cases cover the metric, trace, error-accounting, leakage, and freeze-gate boundaries. The real 60-claim held-out sample was not parsed or evaluated; no provider call or index rebuild occurred. Detailed claim-level traces remain in the ignored generated-results directory.
 
 ## M2-F05 — End-to-end generation evaluation
 
